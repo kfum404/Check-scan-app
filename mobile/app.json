@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "ЧекСкан",
+    "slug": "checkscan",
+    "version": "1.4.0",
+    "orientation": "portrait",
+    "scheme": "checkscan",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F6F7FB",
+    "android": {
+      "package": "com.checkscan.app",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки" }]
+    ]
+  }
+}

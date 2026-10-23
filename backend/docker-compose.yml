@@ -1,0 +1,27 @@
+# Локальная разработка: поднимает Postgres + API одной командой:
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: checkscan
+      POSTGRES_PASSWORD: checkscan
+      POSTGRES_DB: checkscan
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg://checkscan:checkscan@db:5432/checkscan
+      JWT_SECRET: dev-secret-change-me
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

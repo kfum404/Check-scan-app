@@ -1,0 +1,24 @@
+# Деплой на Render: веб-сервис + managed PostgreSQL.
+# ВАЖНО: бесплатная БД Render удаляется через 90 дней — для защиты
+# либо заложите напоминание о переносе, либо платный план (~$7/мес).
+
+services:
+  - type: web
+    name: checkscan-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: checkscan-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+
+databases:
+  - name: checkscan-db
+    plan: free
+    postgresMajorVersion: "16"
