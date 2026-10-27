@@ -3,7 +3,7 @@
   "build": {
     "apk": {
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://checkscan-api.onrender.com" }
+      "env": { "EXPO_PUBLIC_API_URL": "http://193.233.82.97:8000" }
     },
     "preview": {
       "android": { "buildType": "apk" }

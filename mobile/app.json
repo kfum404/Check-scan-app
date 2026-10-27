@@ -9,7 +9,8 @@
     "backgroundColor": "#F6F7FB",
     "android": {
       "package": "com.checkscan.app",
-      "permissions": ["CAMERA"]
+      "permissions": ["CAMERA"],
+      "usesCleartextTraffic": true
     },
     "plugins": [
       ["expo-camera", { "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки" }]
