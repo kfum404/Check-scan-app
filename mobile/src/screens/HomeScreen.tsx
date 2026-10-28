@@ -22,21 +22,22 @@ export default function HomeScreen({ navigation }: BottomTabScreenProps<RootTabP
   const [period, setPeriod] = useState<Period>("today");
 
   const home = useQuery({ queryKey: ["stats", "home"], queryFn: statsApi.home });
+  const week = useQuery({ queryKey: ["stats", "summary", "week"], queryFn: () => statsApi.summary("week") });
   const month = useQuery({ queryKey: ["stats", "summary", "month"], queryFn: () => statsApi.summary("month") });
   const last = useQuery({ queryKey: ["receipts", "last"], queryFn: () => receiptsApi.list(1, 5) });
 
   const h: HomeStats | undefined = home.data;
-  const spent = period === "today" ? h?.today_spent : period === "week" ? undefined : h?.month_spent;
+  const spent = period === "today" ? h?.today_spent : period === "week" ? week.data?.total : h?.month_spent;
   const subtitle =
     period === "today" ? "Потрачено сегодня" : period === "week" ? "Потрачено за неделю" : "Потрачено за месяц";
 
   const byCategory =
     period === "today" ? h?.by_category_today
-    : period === "week" ? undefined
+    : period === "week" ? week.data?.by_category
     : month.data?.by_category;
 
   const refreshing = home.isRefetching || last.isRefetching;
-  const refresh = () => { home.refetch(); month.refetch(); last.refetch(); };
+  const refresh = () => { home.refetch(); week.refetch(); month.refetch(); last.refetch(); };
 
   const now = new Date();
   const months = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -88,7 +89,7 @@ export default function HomeScreen({ navigation }: BottomTabScreenProps<RootTabP
         <Card>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
             <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
-              Категории {period === "month" ? "за месяц" : "сегодня"}
+              Категории {period === "month" ? "за месяц" : period === "week" ? "за неделю" : "сегодня"}
             </Text>
             <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
               {formatAmount(period === "month" ? month.data?.total ?? 0 : weekTotal, "Br")}

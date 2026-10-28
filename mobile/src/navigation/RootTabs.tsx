@@ -57,7 +57,7 @@ export default function RootTabs() {
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: LABELS.Home }} />
       <Tab.Screen name="Camera" component={CameraScreen} options={{ title: LABELS.Camera }} />
       <Tab.Screen name="Stats" component={StatsScreen} options={{ title: LABELS.Stats }} />
-      <Tab.Screen name="History" component={HistoryScreen as React.ComponentType} options={{ title: LABELS.History }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: LABELS.History }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: LABELS.Profile }} />
     </Tab.Navigator>
   );

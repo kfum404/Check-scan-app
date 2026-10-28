@@ -6,11 +6,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRoute, type RouteProp } from "@react-navigation/native";
 
 import { receiptsApi } from "../api";
 import type { Receipt } from "../api/types";
 import { formatAmount, formatDayLabel, formatTime, ReceiptRow } from "../components/ReceiptRow";
 import { Button, EmptyState } from "../components/ui";
+import type { RootTabParamList } from "../navigation/RootTabs";
 import { useTheme } from "../theme";
 
 type Filter = "all" | "today" | "week" | "month";
@@ -22,12 +24,14 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "month", label: "30 дней" },
 ];
 
-export default function HistoryScreen(props: { openReceiptId?: number }) {
+export default function HistoryScreen() {
   const { colors } = useTheme();
+  const route = useRoute<RouteProp<RootTabParamList, "History">>();
+  const openReceiptId = route.params?.openReceiptId;
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [selectedId, setSelectedId] = useState<number | null>(props.openReceiptId ?? null);
+  const [selectedId, setSelectedId] = useState<number | null>(openReceiptId ?? null);
 
   const list = useQuery({
     queryKey: ["receipts", "history"],
@@ -35,8 +39,8 @@ export default function HistoryScreen(props: { openReceiptId?: number }) {
   });
 
   useEffect(() => {
-    if (props.openReceiptId) setSelectedId(props.openReceiptId);
-  }, [props.openReceiptId]);
+    if (openReceiptId) setSelectedId(openReceiptId);
+  }, [openReceiptId]);
 
   const remove = useMutation({
     mutationFn: receiptsApi.remove,
