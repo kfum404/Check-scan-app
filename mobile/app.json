@@ -13,7 +13,8 @@
       "usesCleartextTraffic": true
     },
     "plugins": [
-      ["expo-camera", { "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки" }]
+      ["expo-camera", { "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки" }],
+      ["expo-image-picker", { "photosPermission": "Разрешите доступ к галерее, чтобы выбрать фото чека" }]
     ]
   }
 }

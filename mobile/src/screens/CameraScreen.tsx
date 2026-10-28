@@ -47,6 +47,8 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
   const [busy, setBusy] = useState(false);
+  const [facing, setFacing] = useState<"back" | "front">("back");
+  const [camError, setCamError] = useState<string>();
 
   if (!permission) return <View style={s.center}><ActivityIndicator /></View>;
   if (!permission.granted) {
@@ -61,27 +63,37 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   }
 
   const capture = async () => {
-    if (busy) return;
+    if (busy || !ref.current) return;
     setBusy(true);
+    setCamError(undefined);
     try {
-      const photo = await ref.current?.takePictureAsync({ quality: 0.85 });
+      const photo = await ref.current.takePictureAsync({ quality: 0.85 });
       if (photo) props.onPhoto(photo.uri);
+    } catch {
+      setCamError("Камера ещё не готова — подождите секунду и повторите");
     } finally {
       setBusy(false);
     }
   };
 
   const fromGallery = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
-    const uri = r.assets?.[0]?.uri;
-    if (!r.canceled && uri) props.onPhoto(uri);
+    try {
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
+      const uri = r.assets?.[0]?.uri;
+      if (!r.canceled && uri) props.onPhoto(uri);
+    } catch {
+      setCamError("Не удалось открыть галерею");
+    }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <CameraView style={{ flex: 1 }} ref={ref} facing="back" />
+      <CameraView style={{ flex: 1 }} ref={ref} facing={facing} />
       <View style={s.frame} pointerEvents="none" />
       <Text style={s.hint}>Текст должен быть читаемым и в фокусе</Text>
+      {camError ? (
+        <Text style={[s.hint, { bottom: 205, color: "#FFD3D3" }]}>{camError}</Text>
+      ) : null}
 
       <TouchableOpacity style={[s.close, { position: "absolute", top: 54, left: 20 }]} onPress={() => {}}>
         <Ionicons name="close" size={22} color="#fff" />
@@ -94,10 +106,14 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
         <TouchableOpacity style={s.shutter} onPress={() => void capture()} disabled={busy}>
           {busy ? <ActivityIndicator color="#000" /> : <View style={s.shutterInner} />}
         </TouchableOpacity>
-        <TouchableOpacity style={s.sideBtn} onPress={() => void capture()}>
+        <TouchableOpacity style={s.sideBtn} onPress={() => setFacing(f => f === "back" ? "front" : "back")}>
           <Ionicons name="sync-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={s.manualBtn} onPress={props.onManual}>
+        <Text style={s.manualBtnText}>Заполнить вручную</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -278,4 +294,10 @@ const s = StyleSheet.create({
     width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center", justifyContent: "center",
   },
+  manualBtn: {
+    position: "absolute", bottom: 118, alignSelf: "center",
+    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  manualBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
 });
