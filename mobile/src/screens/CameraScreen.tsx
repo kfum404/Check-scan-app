@@ -47,6 +47,9 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [facing, setFacing] = useState<"back" | "front">("back");
+  const [error, setError] = useState<string>();
 
   if (!permission) return <View style={s.center}><ActivityIndicator /></View>;
   if (!permission.granted) {
@@ -61,11 +64,19 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   }
 
   const capture = async () => {
-    if (busy) return;
+    if (busy || !ready) return;
     setBusy(true);
+    setError(undefined);
     try {
       const photo = await ref.current?.takePictureAsync({ quality: 0.85 });
-      if (photo) props.onPhoto(photo.uri);
+      if (photo) {
+        props.onPhoto(photo.uri);
+      } else {
+        setError("Камера ещё не готова, попробуйте ещё раз");
+      }
+    } catch (e) {
+      console.warn("takePictureAsync failed:", e);
+      setError("Не удалось сделать фото. Проверьте, что камера не занята другим приложением.");
     } finally {
       setBusy(false);
     }
@@ -79,9 +90,20 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <CameraView style={{ flex: 1 }} ref={ref} facing="back" />
+      <CameraView
+        style={{ flex: 1 }}
+        ref={ref}
+        facing={facing}
+        onCameraReady={() => setReady(true)}
+      />
       <View style={s.frame} pointerEvents="none" />
       <Text style={s.hint}>Текст должен быть читаемым и в фокусе</Text>
+
+      {error ? (
+        <View style={{ position: "absolute", top: 110, left: 24, right: 24, backgroundColor: "rgba(200,40,40,0.85)", borderRadius: 12, padding: 10 }}>
+          <Text style={{ color: "#fff", fontSize: 13, textAlign: "center" }}>{error}</Text>
+        </View>
+      ) : null}
 
       <TouchableOpacity style={[s.close, { position: "absolute", top: 54, left: 20 }]} onPress={() => {}}>
         <Ionicons name="close" size={22} color="#fff" />
@@ -91,10 +113,10 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
         <TouchableOpacity style={s.sideBtn} onPress={() => void fromGallery()}>
           <Ionicons name="image-outline" size={24} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={s.shutter} onPress={() => void capture()} disabled={busy}>
+        <TouchableOpacity style={[s.shutter, (!ready || busy) && { opacity: 0.5 }]} onPress={() => void capture()} disabled={busy || !ready}>
           {busy ? <ActivityIndicator color="#000" /> : <View style={s.shutterInner} />}
         </TouchableOpacity>
-        <TouchableOpacity style={s.sideBtn} onPress={() => void capture()}>
+        <TouchableOpacity style={s.sideBtn} onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}>
           <Ionicons name="sync-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
