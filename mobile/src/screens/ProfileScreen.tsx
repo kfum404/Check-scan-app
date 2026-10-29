@@ -49,15 +49,14 @@ export default function ProfileScreen() {
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 }}>
           <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-          <Text style={{ color: colors.subtext, fontSize: 12 }}>Apple ID · подключен (демо)</Text>
+          <Text style={{ color: colors.subtext, fontSize: 12 }}>Аккаунт активен</Text>
         </View>
       </Card>
 
       <Text style={s.section}>Вход через сервисы</Text>
       <Card style={{ paddingVertical: 6 }}>
-        <ServiceRow icon="logo-google" name="Google" note="основной аккаунт" action="Подключить" onPress={() => {}} />
-        <ServiceRow icon="logo-apple" name="Apple ID" note="не подключен" action="Подключен" done onPress={() => {}} />
-        <ServiceRow icon="mail" name="Email" note={user.email} action="Подключить" onPress={() => {}} />
+        <ServiceRow icon="logo-google" name="Google" note="в разработке" action="Скоро" onPress={() => {}} />
+        <ServiceRow icon="mail" name="Email" note={user.email} action="Подключен" done onPress={() => {}} />
       </Card>
 
       <Text style={s.section}>Тема и формат</Text>

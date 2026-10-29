@@ -90,9 +90,15 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
     } catch (e) {
       err1 = String(e && (e as Error).message ? (e as Error).message : e);
     }
-    // встроенная камера не сработала (особенность прошивки) — просим системную
+    // встроенная камера не сработала (особенность прошивки) — просим системную;
+    // сначала запрашиваем её разрешение, иначе пикер молча падает
     let err2 = "";
     try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        showError("Нет разрешения на камеру — разрешите его в настройках приложения");
+        return;
+      }
       const r = await ImagePicker.launchCameraAsync({ quality: 0.85 });
       const uri = r.assets?.[0]?.uri;
       if (!r.canceled && uri) {
@@ -101,6 +107,8 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
       }
     } catch (e) {
       err2 = String(e && (e as Error).message ? (e as Error).message : e);
+    } finally {
+      setBusy(false);
     }
     showError(`Снимок не удался. Отладка: [1] ${err1 || "отмена"} [2] ${err2 || "отмена"}`);
   };
