@@ -50,6 +50,7 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   const [facing, setFacing] = useState<"back" | "front">("back");
   const [camError, setCamError] = useState<string>();
   const [cameraReady, setCameraReady] = useState(false);
+  const [torch, setTorch] = useState(false);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // надписи об ошибках гаснут сами через 4 секунды
@@ -136,6 +137,7 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
         style={{ flex: 1 }}
         ref={ref}
         facing={facing}
+        enableTorch={torch}
         onCameraReady={() => setCameraReady(true)}
       />
       <View style={s.frame} pointerEvents="none" />
@@ -160,6 +162,12 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
           onPress={() => { setCameraReady(false); setFacing(f => f === "back" ? "front" : "back"); }}
         >
           <Ionicons name="sync-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.sideBtn, torch && { backgroundColor: "rgba(255,214,0,0.35)" }]}
+          onPress={() => setTorch(t => !t)}
+        >
+          <Ionicons name={torch ? "flashlight" : "flashlight-outline"} size={24} color={torch ? "#FFD600" : "#fff"} />
         </TouchableOpacity>
       </View>
 
