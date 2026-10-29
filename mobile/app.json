@@ -12,8 +12,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ],
-      "usesCleartextTraffic": true
+      ]
     },
     "plugins": [
       [
@@ -26,6 +25,14 @@
         "expo-image-picker",
         {
           "photosPermission": "Разрешите доступ к галерее, чтобы выбрать фото чека"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ],
