@@ -23,3 +23,5 @@ backend/tests/data/receipts/
 # ОС
 .DS_Store
 Thumbs.db
+build*.log
+buildlog-url.txt
