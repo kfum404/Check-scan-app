@@ -9,12 +9,31 @@
     "backgroundColor": "#F6F7FB",
     "android": {
       "package": "com.checkscan.app",
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "usesCleartextTraffic": true
     },
     "plugins": [
-      ["expo-camera", { "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки" }],
-      ["expo-image-picker", { "photosPermission": "Разрешите доступ к галерее, чтобы выбрать фото чека" }]
-    ]
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Разрешите доступ к галерее, чтобы выбрать фото чека"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "34bdc520-4486-4439-9090-8f74f6e0f5fd"
+      }
+    },
+    "owner": "spermirkss-team"
   }
 }

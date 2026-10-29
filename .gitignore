@@ -1,0 +1,25 @@
+# Зависимости
+node_modules/
+npm-cache/
+
+# Expo / сборки
+.expo/
+dist/
+web-build/
+*.log
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+
+# Локальное окружение и данные
+.env
+*.db
+uploads/
+backend/tests/data/receipts/
+
+# ОС
+.DS_Store
+Thumbs.db
