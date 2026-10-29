@@ -38,14 +38,33 @@ def _preprocess_variants(img: "object") -> dict[str, "object"]:
     return {"thresh": thresh, "gray": gray}
 
 
+def _bundled_tessdata() -> "str | None":
+    """Папка с языковыми пакетами из репозитория (backend/tessdata).
+
+    Пакеты из apt/системы отличаются по качеству распознавания — чтобы результат
+    на любом сервере совпадал с замерами в docs/OCR_ACCURACY.md, используем
+    зафиксированные tessdata_fast. Переопределить можно переменной TESSDATA_PREFIX.
+    """
+    from pathlib import Path
+
+    d = Path(__file__).resolve().parent.parent.parent / "tessdata"
+    return str(d) if (d / "rus.traineddata").exists() else None
+
+
 def _configure_tesseract() -> None:
-    """Путь к бинарнику (на Windows-разработке Tesseract не в PATH)."""
+    """Путь к бинарнику (на Windows-разработке Tesseract не в PATH) + tessdata."""
+    import os
+
     import pytesseract
 
     from ..config import settings
 
     if settings.TESSERACT_CMD:
         pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+
+    bundled = _bundled_tessdata()
+    if bundled and not os.environ.get("TESSDATA_PREFIX"):
+        os.environ["TESSDATA_PREFIX"] = bundled
 
 
 def _ocr(img: "object", lang: str, psm: int) -> tuple[str, float]:
