@@ -79,38 +79,46 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
       return;
     }
     setBusy(true);
+    let err1 = "";
     try {
       const photo = await ref.current.takePictureAsync({ quality: 0.85 });
       if (photo) {
         props.onPhoto(photo.uri);
         return;
       }
-      throw new Error("empty photo");
-    } catch {
-      // встроенная камера не сработала (особенность прошивки) — просим системную
-      try {
-        const r = await ImagePicker.launchCameraAsync({ quality: 0.85 });
-        const uri = r.assets?.[0]?.uri;
-        if (!r.canceled && uri) {
-          props.onPhoto(uri);
-          return;
-        }
-      } catch {
-        /* и системная не открылась — покажем сообщение ниже */
-      }
-      showError("Не удалось сделать снимок — попробуйте ещё раз или выберите фото из галереи");
-    } finally {
-      setBusy(false);
+      err1 = "снимок пустой";
+    } catch (e) {
+      err1 = String(e && (e as Error).message ? (e as Error).message : e);
     }
+    // встроенная камера не сработала (особенность прошивки) — просим системную
+    let err2 = "";
+    try {
+      const r = await ImagePicker.launchCameraAsync({ quality: 0.85 });
+      const uri = r.assets?.[0]?.uri;
+      if (!r.canceled && uri) {
+        props.onPhoto(uri);
+        return;
+      }
+    } catch (e) {
+      err2 = String(e && (e as Error).message ? (e as Error).message : e);
+    }
+    showError(`Снимок не удался. Отладка: [1] ${err1 || "отмена"} [2] ${err2 || "отмена"}`);
   };
 
   const fromGallery = async () => {
     try {
+      // явно запрашиваем разрешение перед открытием (на части прошивок пикер
+      // молча падает, если разрешение ещё не выдано)
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showError("Нет разрешения на галерею — включите его в настройках приложения");
+        return;
+      }
       const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85 });
       const uri = r.assets?.[0]?.uri;
       if (!r.canceled && uri) props.onPhoto(uri);
-    } catch {
-      showError("Не удалось открыть галерею");
+    } catch (e) {
+      showError(`Галерея: ${String(e && (e as Error).message ? (e as Error).message : e)}`);
     }
   };
 
