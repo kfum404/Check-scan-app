@@ -8,17 +8,14 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F6F7FB",
     "android": {
-      "package": "com.checkscan.app",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "package": "com.checkscan.app"
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки"
+          "cameraPermission": "Разрешите доступ к камере, чтобы сканировать чеки",
+          "recordAudioAndroid": false
         }
       ],
       [

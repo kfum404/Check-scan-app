@@ -49,6 +49,16 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   const [busy, setBusy] = useState(false);
   const [facing, setFacing] = useState<"back" | "front">("back");
   const [camError, setCamError] = useState<string>();
+  const [cameraReady, setCameraReady] = useState(false);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // надписи об ошибках гаснут сами через 4 секунды
+  const showError = (msg: string) => {
+    setCamError(msg);
+    if (errorTimer.current) clearTimeout(errorTimer.current);
+    errorTimer.current = setTimeout(() => setCamError(undefined), 4000);
+  };
+  React.useEffect(() => () => { if (errorTimer.current) clearTimeout(errorTimer.current); }, []);
 
   if (!permission) return <View style={s.center}><ActivityIndicator /></View>;
   if (!permission.granted) {
@@ -63,14 +73,32 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
   }
 
   const capture = async () => {
-    if (busy || !ref.current) return;
+    if (busy) return;
+    if (!cameraReady || !ref.current) {
+      showError("Камера ещё не готова — подождите секунду и повторите");
+      return;
+    }
     setBusy(true);
-    setCamError(undefined);
     try {
       const photo = await ref.current.takePictureAsync({ quality: 0.85 });
-      if (photo) props.onPhoto(photo.uri);
+      if (photo) {
+        props.onPhoto(photo.uri);
+        return;
+      }
+      throw new Error("empty photo");
     } catch {
-      setCamError("Камера ещё не готова — подождите секунду и повторите");
+      // встроенная камера не сработала (особенность прошивки) — просим системную
+      try {
+        const r = await ImagePicker.launchCameraAsync({ quality: 0.85 });
+        const uri = r.assets?.[0]?.uri;
+        if (!r.canceled && uri) {
+          props.onPhoto(uri);
+          return;
+        }
+      } catch {
+        /* и системная не открылась — покажем сообщение ниже */
+      }
+      showError("Не удалось сделать снимок — попробуйте ещё раз или выберите фото из галереи");
     } finally {
       setBusy(false);
     }
@@ -82,13 +110,18 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
       const uri = r.assets?.[0]?.uri;
       if (!r.canceled && uri) props.onPhoto(uri);
     } catch {
-      setCamError("Не удалось открыть галерею");
+      showError("Не удалось открыть галерею");
     }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
-      <CameraView style={{ flex: 1 }} ref={ref} facing={facing} />
+      <CameraView
+        style={{ flex: 1 }}
+        ref={ref}
+        facing={facing}
+        onCameraReady={() => setCameraReady(true)}
+      />
       <View style={s.frame} pointerEvents="none" />
       <Text style={s.hint}>Текст должен быть читаемым и в фокусе</Text>
       {camError ? (
@@ -106,7 +139,10 @@ function CameraStage(props: { onPhoto: (uri: string) => void; onManual: () => vo
         <TouchableOpacity style={s.shutter} onPress={() => void capture()} disabled={busy}>
           {busy ? <ActivityIndicator color="#000" /> : <View style={s.shutterInner} />}
         </TouchableOpacity>
-        <TouchableOpacity style={s.sideBtn} onPress={() => setFacing(f => f === "back" ? "front" : "back")}>
+        <TouchableOpacity
+          style={s.sideBtn}
+          onPress={() => { setCameraReady(false); setFacing(f => f === "back" ? "front" : "back"); }}
+        >
           <Ionicons name="sync-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
