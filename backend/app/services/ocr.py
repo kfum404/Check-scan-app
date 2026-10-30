@@ -10,6 +10,7 @@ image_to_text_auto — боевой вход: подбирает поворот 
 from __future__ import annotations
 
 import io
+import re
 
 ROTATIONS = (0, 90, 180, 270)
 
@@ -93,9 +94,19 @@ def _resize_max(img: "object", max_side: int = 700) -> "object":
     return cv2.resize(img, (int(w * scale), int(h * scale)))
 
 
-def _count_confident_words(img: "object", lang: str, psm: int) -> tuple[int, float]:
-    """Метрика для выбора поворота: число уверенно распознанных слов +
-    средняя уверенность. Уверенность alone обманывает на сером фоне."""
+# rotate по часовой → константа cv2 (против часовой на тот же угол)
+_CW_TO_CV2 = {0: None, 90: "ROTATE_90_COUNTERCLOCKWISE",
+              180: "ROTATE_180", 270: "ROTATE_90_CLOCKWISE"}
+
+# слова, которые почти всегда есть на чеке: верный поворот даёт больше совпадений
+_ROTATION_KEYWORDS = re.compile(
+    r"(?i)(итог|сумм|total|summe|gesamt|чек|оплат|касс|сдач|наличн|стоим)")
+
+
+def _score_rotation(img: "object", lang: str, psm: int) -> tuple[int, int, float]:
+    """Метрика выбора поворота: (совпадений ключевых слов, число уверенных
+    слов ≥3 символов, средняя уверенность). Ключевые слова главнее — перевёрнутый
+    текст Tesseract распознаёт «уверенно», но осмысленных слов чека в нём нет."""
     import pytesseract
     from PIL import Image
 
@@ -104,47 +115,12 @@ def _count_confident_words(img: "object", lang: str, psm: int) -> tuple[int, flo
         Image.fromarray(img), lang=lang, config=f"--psm {psm}",
         output_type=pytesseract.Output.DICT,
     )
-    good = [int(c) for c, t in zip(data["conf"], data["text"])
-            if int(c) >= 60 and len(t.strip()) >= 3]
+    words = [t for t, c in zip(data["text"], data["conf"])
+             if int(c) >= 60 and len(t.strip()) >= 3]
     allc = [int(c) for c in data["conf"] if int(c) >= 0]
     avg = sum(allc) / len(allc) if allc else 0.0
-    return len(good), round(avg, 2)
-
-
-def _pick_rotation_osd(img: "object") -> int | None:
-    """OSD Tesseract: сколько градусов по часовой повернуть изображение.
-    Возвращает None, если OSD не сработал (мало текста)."""
-    import pytesseract
-    from PIL import Image
-
-    _configure_tesseract()
-    try:
-        data = pytesseract.image_to_osd(Image.fromarray(img),
-                                        output_type=pytesseract.Output.DICT)
-        return int(data.get("rotate", 0))
-    except Exception:
-        return None
-
-
-def _pick_rotation_voting(thumb: "object", lang: str, psm: int) -> int:
-    """Запасной вариант: выбираем угол с максимумом уверенных слов (≥3 символов)."""
-    import cv2
-
-    best_angle, best_key = 0, (-1, -1.0)
-    for angle in ROTATIONS:
-        rot = (thumb if angle == 0
-               else cv2.rotate(thumb, {90: cv2.ROTATE_90_CLOCKWISE,
-                                       180: cv2.ROTATE_180,
-                                       270: cv2.ROTATE_90_COUNTERCLOCKWISE}[angle]))
-        words, conf = _count_confident_words(rot, lang, psm)
-        if (words, conf) > best_key:
-            best_angle, best_key = angle, (words, conf)
-    return best_angle
-
-
-# rotate по часовой → константа cv2 (против часовой на тот же угол)
-_CW_TO_CV2 = {0: None, 90: "ROTATE_90_COUNTERCLOCKWISE",
-              180: "ROTATE_180", 270: "ROTATE_90_CLOCKWISE"}
+    kw = len(_ROTATION_KEYWORDS.findall(" ".join(words)))
+    return kw, len(words), round(avg, 2)
 
 
 def _apply_cw_rotation(img: "object", degrees_cw: int) -> "object":
@@ -156,16 +132,29 @@ def _apply_cw_rotation(img: "object", degrees_cw: int) -> "object":
 
 def image_to_text_auto(image_bytes: bytes, lang: str = "rus+eng",
                        psm: int = 6) -> tuple[str, float, int, str]:
-    """Полный пайплайн: поворот (OSD) + выбор предобработки по уверенности.
+    """Полный пайплайн: поворот (OSD + голосование) + выбор предобработки.
 
     Возвращает (текст, средняя уверенность 0..100, угол поворота по часовой, вариант).
+
+    OSD Tesseract на чеках с криллицей/таблицами часто ошибается, поэтому его
+    ответ не применяем напрямую: скорим всех кандидатов (OSD, победитель
+    голосования, 0°/180°) по числу уверенных слов и берём лучшего.
     """
     img = _decode(image_bytes)
+    # скорим повороты на уменьшенной копии: 700px мало — мелкий шрифт чека
+    # перестаёт распознаваться и метрика вырождается
+    thumb = _preprocess_variants(_resize_max(img, 1200))["gray"]
 
-    rotate_cw = _pick_rotation_osd(img)
-    if rotate_cw is None:
-        rotate_cw = _pick_rotation_voting(_resize_max(img), lang, psm)
-    full = _apply_cw_rotation(img, rotate_cw)
+    # все 4 угла скорим на уменьшенной копии: метрика — ключевые слова чека,
+    # затем уверенные слова; OSD не используем — на чеках с кириллицей он
+    # регулярно выбирает неверный угол
+    best_angle, best_key = 0, (-1, -1, -1.0)
+    for angle in ROTATIONS:
+        rot = thumb if angle == 0 else _apply_cw_rotation(thumb, angle)
+        key = _score_rotation(rot, lang, psm)
+        if key > best_key:
+            best_angle, best_key = angle, key
+    full = _apply_cw_rotation(img, best_angle)
 
     # полное распознавание двумя способами бинаризации
     best: tuple[str, float, str] = ("", -1.0, "thresh")
@@ -173,7 +162,7 @@ def image_to_text_auto(image_bytes: bytes, lang: str = "rus+eng",
         text, conf = _ocr(processed, lang, psm)
         if conf > best[1]:
             best = (text, conf, variant)
-    return best[0], best[1], rotate_cw, best[2]
+    return best[0], best[1], best_angle, best[2]
 
 
 def preprocess(image_bytes: bytes) -> "object":  # -> numpy.ndarray

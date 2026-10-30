@@ -79,7 +79,7 @@ async def scan_receipt(
     db.commit()
 
     low_fields = []
-    if parsed.total is None or ocr_conf < LOW_CONFIDENCE_THRESHOLD:
+    if parsed.total is None or parsed.total_from_items or ocr_conf < LOW_CONFIDENCE_THRESHOLD:
         low_fields.append("total_amount")
     if parsed.date is None:
         low_fields.append("date")
@@ -125,7 +125,7 @@ def confirm_receipt(
 @router.get("", response_model=ReceiptListResponse)
 def list_receipts(
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=500),
     status_filter: str | None = Query(None, alias="status"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),

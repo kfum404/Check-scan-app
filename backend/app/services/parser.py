@@ -51,6 +51,7 @@ class ParsedReceipt:
     currency: str = "BYN"
     candidates_total: list[float] = field(default_factory=list)
     confidence: float = 0.0  # 0..1, доля успешно извлечённых полей
+    total_from_items: bool = False  # итог посчитан как сумма позиций (проверить вручную)
 
 
 def _to_float(raw: str) -> float | None:
@@ -133,8 +134,23 @@ def extract_shop(text: str) -> str | None:
     return None
 
 
+def _fallback_total_from_items(text: str) -> float | None:
+    """Если помеченный итог не найден, складываем распознанные позиции —
+    на большинстве чеков их сумма совпадает с итогом."""
+    from .ocr import extract_items
+
+    items = extract_items(text)
+    if len(items) >= 2:
+        return round(sum(price for _, price in items), 2)
+    return None
+
+
 def parse_receipt_text(text: str) -> ParsedReceipt:
     total, candidates = extract_total(text)
+    total_from_items = False
+    if total is None:
+        total = _fallback_total_from_items(text)
+        total_from_items = total is not None
     date = extract_date(text)
     shop = extract_shop(text)
 
@@ -145,4 +161,5 @@ def parse_receipt_text(text: str) -> ParsedReceipt:
         total=total,
         candidates_total=candidates,
         confidence=round(filled / 3, 2),
+        total_from_items=total_from_items,
     )

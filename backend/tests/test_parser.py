@@ -88,6 +88,13 @@ def test_quantity_column_not_amount():
     assert 1.00 not in candidates
 
 
+def test_fallback_total_from_items():
+    """Итог не найден — сумма складывается из распознанных позиций."""
+    parsed = parse_receipt_text("Евроопт\n1. ХЛЕБ 2.45\n2. МОЛОКО 3.10\n3. СЫР 5.60")
+    assert parsed.total == 11.15
+    assert parsed.total_from_items is True
+
+
 def test_date_variants():
     assert extract_date("30.07.2007/13:29:17") is not None  # "/" между датой и временем
     assert extract_date("30,07,2007") is not None           # запятые вместо точек
