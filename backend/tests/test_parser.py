@@ -74,6 +74,20 @@ def test_amount_with_space_after_separator():
     assert total == 34.09
 
 
+def test_glued_amount_is_not_total():
+    """«СУММА HOC 207-699. 83» — число вклеено в мусор OCR, итогом не является."""
+    text = "Сумма (Руб): 4199.00\nСУММА HOC 207-699. 83"
+    total, _ = extract_total(text)
+    assert total == 4199.00
+
+
+def test_quantity_column_not_amount():
+    """«1.000×49.90» — колонка количества, а не цена."""
+    total, candidates = extract_total("К-ВО×ЦЕНА 1.000×49.90\nИТОГО 49.90")
+    assert total == 49.90
+    assert 1.00 not in candidates
+
+
 def test_date_variants():
     assert extract_date("30.07.2007/13:29:17") is not None  # "/" между датой и временем
     assert extract_date("30,07,2007") is not None           # запятые вместо точек

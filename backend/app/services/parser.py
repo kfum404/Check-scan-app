@@ -64,13 +64,28 @@ def _plausible(value: float | None) -> bool:
     return value is not None and 0.1 <= value <= 10_000
 
 
+def _amounts_in_line(line: str) -> list[float]:
+    """Суммы в строке; числа, вклеенные в более длинные последовательности
+    («207-699. 83», «1.000×49.90»), отсекаем — это мусор OCR, а не сумма."""
+    out = []
+    for m in re.finditer(AMOUNT, line):
+        start, end = m.span()
+        before = line[start - 1] if start > 0 else " "
+        after = line[end] if end < len(line) else " "
+        if before.isdigit() or before == "-" or after.isdigit():
+            continue
+        value = _to_float(m.group(1))
+        if _plausible(value):
+            out.append(value)
+    return out
+
+
 def extract_total(text: str) -> tuple[float | None, list[float]]:
     labeled: list[float] = []
     candidates: list[float] = []
 
     for line in text.splitlines():
-        amounts = [_to_float(m) for m in re.findall(AMOUNT, line)]
-        amounts = [a for a in amounts if _plausible(a)]
+        amounts = _amounts_in_line(line)
         if not amounts:
             continue
         if TOTAL_LABEL.search(line) and not TOTAL_TRAP.search(line):
