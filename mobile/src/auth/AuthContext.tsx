@@ -7,6 +7,7 @@ import React, {
 import { authApi, usersApi } from "../api";
 import { setAuthToken } from "../api/client";
 import type { User } from "../api/types";
+import { registerPushToken } from "../notifications/register";
 import { ThemeProvider } from "../theme";
 
 const TOKEN_KEY = "checkscan_token";
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) {
           setAuthToken(token);
           setUser(await authApi.me());
+          void registerPushToken();
         }
       } catch {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     setAuthToken(token);
     setUser(u);
+    void registerPushToken(); // фоном, не блокируем вход
   }, []);
 
   const login = useCallback(

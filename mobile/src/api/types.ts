@@ -8,6 +8,7 @@ export interface User {
   biometrics_enabled: boolean;
   theme_preference: "light" | "dark";
   monthly_budget: number;
+  push_token?: string | null;
 }
 
 export interface ReceiptItem {

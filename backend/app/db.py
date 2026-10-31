@@ -32,3 +32,15 @@ def init_db() -> None:
     from . import models  # noqa: F401 — регистрация моделей
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_column("users", "push_token", "VARCHAR(255)")
+
+
+def _migrate_add_column(table: str, column: str, ddl: str) -> None:
+    """Добавляет колонку, если её ещё нет (SQLite-вариант миграции)."""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        cols = [r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))]
+        if column not in cols:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+            conn.commit()

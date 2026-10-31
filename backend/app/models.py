@@ -19,6 +19,7 @@ class User(Base):
     biometrics_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     theme_preference: Mapped[str] = mapped_column(String(10), default="light")
     monthly_budget: Mapped[float] = mapped_column(Numeric(10, 2), default=5000)
+    push_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     receipts: Mapped[list["Receipt"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

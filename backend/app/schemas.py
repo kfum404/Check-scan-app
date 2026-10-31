@@ -109,6 +109,7 @@ class UserPatchRequest(BaseModel):
     biometrics_enabled: bool | None = None
     theme_preference: str | None = Field(default=None, pattern="^(light|dark)$")
     monthly_budget: float | None = Field(default=None, gt=0, le=1_000_000)
+    push_token: str | None = Field(default=None, max_length=255)
 
 
 class ErrorResponse(BaseModel):

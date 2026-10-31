@@ -8,7 +8,10 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F6F7FB",
     "android": {
-      "package": "com.checkscan.app"
+      "package": "com.checkscan.app",
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
     },
     "plugins": [
       [
@@ -32,7 +35,13 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
     ],
     "extra": {
       "eas": {

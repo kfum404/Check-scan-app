@@ -45,6 +45,7 @@ export const statsApi = {
 export const usersApi = {
   patch: (body: Partial<Pick<User,
     "name" | "notifications_enabled" | "autosave_enabled" |
-    "biometrics_enabled" | "theme_preference" | "monthly_budget">>) =>
+    "biometrics_enabled" | "theme_preference" | "monthly_budget" |
+    "push_token">>) =>
     api<User>("/users/me", { method: "PATCH", body }),
 };

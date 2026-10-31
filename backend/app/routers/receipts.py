@@ -12,7 +12,7 @@ from ..models import Receipt, ReceiptItem, User
 from ..schemas import (ReceiptConfirmRequest, ReceiptDetailOut, ReceiptListResponse,
                        ReceiptOut, ScanResult, SummaryResponse)
 from ..security import get_current_user
-from ..services import categorize, ocr, parser
+from ..services import categorize, ocr, parser, push
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -117,6 +117,7 @@ def confirm_receipt(
         for it in body.items:
             db.add(ReceiptItem(receipt_id=receipt.id, item_name=it.item_name, price=it.price))
     db.commit()
+    push.notify_async(user.id, float(receipt.total_amount))
     return db.scalar(
         select(Receipt).options(selectinload(Receipt.items)).where(Receipt.id == receipt_id)
     )
@@ -174,6 +175,7 @@ def create_manual(
     for it in body.items:
         db.add(ReceiptItem(receipt_id=receipt.id, item_name=it.item_name, price=it.price))
     db.commit()
+    push.notify_async(user.id, float(receipt.total_amount))
     return db.scalar(
         select(Receipt).options(selectinload(Receipt.items)).where(Receipt.id == receipt.id)
     )
