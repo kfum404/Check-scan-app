@@ -6,7 +6,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Button, Card, ErrorText, Segmented, Toggle } from "../components/ui";
+import { getPushStatus, registerPushToken } from "../notifications/register";
 import { useTheme } from "../theme";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function ProfileScreen() {
   const { colors, dark } = useTheme();
@@ -15,6 +17,16 @@ export default function ProfileScreen() {
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState("");
   const [savingBudget, setSavingBudget] = useState(false);
+  const [pushStatus, setPushStatus] = useState(getPushStatus());
+
+  // при открытии профиля пробуем зарегистрировать push заново и показываем статус
+  useFocusEffect(React.useCallback(() => {
+    let active = true;
+    void registerPushToken().finally(() => {
+      if (active) setPushStatus(getPushStatus());
+    });
+    return () => { active = false; };
+  }, []));
 
   if (!user) return null;
 
@@ -106,6 +118,9 @@ export default function ProfileScreen() {
           value={user.autosave_enabled} onChange={(v) => void patch({ autosave_enabled: v })}
         />
       </Card>
+      <Text style={{ color: colors.subtext, fontSize: 11, marginHorizontal: 20, marginBottom: 12 }}>
+        Push: {pushStatus}
+      </Text>
 
       <Modal visible={budgetOpen} transparent animationType="fade" onRequestClose={() => setBudgetOpen(false)}>
         <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: "center", padding: 24 }}>
