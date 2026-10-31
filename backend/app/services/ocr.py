@@ -183,6 +183,8 @@ def extract_items(text: str) -> list[tuple[str, float]]:
     Поддерживает реальные форматы: '1. ХЛЕБ РЖАНОЙ 2.45',
     'ШАМПУНЬ FRUCTIS 16.59 x1.000 16.59', '2740 ШОКОЛАДНЫЙ БА 1.000×49.90 49.90'.
     Убирает порядковый номер/код товара, колонку количества и хвостовые коды.
+    OCR часто рвёт позицию на две строки («название с кодом» / «6.40 x1.000 6.40»)
+    — такую пару склеиваем: цена берётся из числовой строки, имя — из предыдущей.
     """
     import re
 
@@ -193,27 +195,67 @@ def extract_items(text: str) -> list[tuple[str, float]]:
     )
     leading = re.compile(r"^\s*(?:\d{1,3}\s*[.)]?\s+)?(?:\d{4,}\s+)?")
     trail_codes = re.compile(r"(\s+\d{4,})+$")
+    leftover_qty = re.compile(r"(?i)\s*[x×]\s*\d{1,4}[.,]?\d{0,3}\s*$")
+    leftover_price = re.compile(r"\s+\d{1,5}[.,]\d{2}\s*$")
     blacklist = re.compile(
-        r"(?i)(итог|сумма|всего|наличн|карта|сдач|к\s*оплате|оплате|чек|mwst|vat|стоим)"
+        r"(?i)(\bитог\w*|\bсумм\w*|\bвсего\b|\bналичн\w*|\bсдач\w*|\bоплат\w*"
+        r"|\bкарт[аеу]\b|\bндс\b|\bhac\b|mwst|vat|\bстоим\w*|в\s*т\.?\s*ч"
+        r"|в том числе|\bединиц\w*)"
     )
+    has_letters = re.compile(r"[A-Za-zА-Яа-яЁё]{3}")
+
+    def clean(body: str) -> str:
+        body = qty_tail.sub("", body)
+        body = leftover_qty.sub("", body)
+        body = leftover_price.sub("", body)
+        body = leading.sub("", body)
+        body = trail_codes.sub("", body)
+        return body.strip()
 
     items: list[tuple[str, float]] = []
+    pending_name: str | None = None  # «именная» строка без цены (для склейки)
+
     for line in text.splitlines():
-        m = re.search(r"(\d{1,6}[.,]\d{2})\s*$", line.strip())
+        raw = line.strip()
+        if not raw:
+            pending_name = None
+            continue
+        m = re.search(r"(\d{1,6}[.,]\d{2})\s*$", raw)
         if not m:
+            cand = clean(raw)
+            # строка-кандидат в названия: осмысленный текст без цены
+            if (4 <= len(cand) <= 60 and has_letters.search(cand)
+                    and not blacklist.search(cand)):
+                pending_name = cand
             continue
+
         price = float(m.group(1).replace(",", "."))
+        body = clean(raw[: m.start()])
+        black = bool(blacklist.search(body))
+        if black:
+            # чеки в стиле Евроопт: цена товара — первое число следующей
+            # строки «в том числе НДС … 1.91 1.000 1.91 0.22»
+            if pending_name:
+                amounts = re.findall(r"\d{1,6}[.,]\d{2}", raw)
+                amounts = [float(a.replace(",", ".")) for a in amounts]
+                amounts = [a for a in amounts if 0.05 <= a <= 100_000]
+                if amounts:
+                    if not items or items[-1] != (pending_name, amounts[0]):
+                        items.append((pending_name, amounts[0]))
+            pending_name = None
+            continue
         if not 0.05 <= price <= 100_000:
+            pending_name = None
             continue
-        body = line.strip()[: m.start()]
-        body = qty_tail.sub("", body)          # «16.59 x1.000» / «1.000×49.90»
-        body = leading.sub("", body)           # порядковый номер / код товара
-        body = trail_codes.sub("", body).strip()  # хвостовые коды («... 45069»)
-        if not (3 <= len(body) <= 60):
+        name: str | None = None
+        if 3 <= len(body) <= 60 and has_letters.search(body):
+            name = body
+        elif pending_name:
+            name = pending_name
+        pending_name = None
+        if name is None:
             continue
-        if not re.search(r"[A-Za-zА-Яа-яЁё]", body):
-            continue
-        if blacklist.search(body):
-            continue
-        items.append((body, price))
+        if items and items[-1] == (name, price):
+            continue  # дубликат от повторного прохода OCR
+        items.append((name, price))
     return items
