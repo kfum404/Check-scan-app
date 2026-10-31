@@ -1,6 +1,6 @@
 // Профиль: карточка пользователя, привязки (заглушки), тема, тумблеры, выход.
 import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { ApiError } from "../api/client";
@@ -12,6 +12,9 @@ export default function ProfileScreen() {
   const { colors, dark } = useTheme();
   const { user, logout, updateUser } = useAuth();
   const [error, setError] = useState<string>();
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState("");
+  const [savingBudget, setSavingBudget] = useState(false);
 
   if (!user) return null;
 
@@ -82,21 +85,68 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <Text style={s.section}>Бюджет</Text>
+      <Card style={{ paddingVertical: 6 }}>
+        <TouchableOpacity style={s.kvRow} onPress={() => { setBudgetDraft(String(user.monthly_budget)); setBudgetOpen(true); }}>
+          <Text style={{ color: colors.text, fontSize: 15 }}>Месячный лимит</Text>
+          <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "600" }}>
+            {Math.round(user.monthly_budget)} Br · Изменить
+          </Text>
+        </TouchableOpacity>
+      </Card>
+
       <Text style={s.section}>Настройки</Text>
       <Card style={{ paddingVertical: 6 }}>
         <SettingRow
-          title="Уведомления" note="напоминание об дневном лимите"
+          title="Уведомления" note="предупреждение при приближении к месячному лимиту"
           value={user.notifications_enabled} onChange={(v) => void patch({ notifications_enabled: v })}
         />
         <SettingRow
           title="Автосохранение чеков" note="после успешного распознавания"
           value={user.autosave_enabled} onChange={(v) => void patch({ autosave_enabled: v })}
         />
-        <SettingRow
-          title="Вход с помощью биометрии" note="Face ID · Touch ID"
-          value={user.biometrics_enabled} onChange={(v) => void patch({ biometrics_enabled: v })}
-        />
       </Card>
+
+      <Modal visible={budgetOpen} transparent animationType="fade" onRequestClose={() => setBudgetOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: "center", padding: 24 }}>
+          <View style={{ backgroundColor: colors.card, borderRadius: 20, padding: 20 }}>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: "800", marginBottom: 4 }}>Месячный лимит</Text>
+            <Text style={{ color: colors.subtext, fontSize: 13, marginBottom: 12 }}>
+              Сумма, при приближении к которой придёт уведомление
+            </Text>
+            <TextInput
+              value={budgetDraft}
+              onChangeText={setBudgetDraft}
+              keyboardType="decimal-pad"
+              placeholder="5000"
+              placeholderTextColor={colors.subtext}
+              autoFocus
+              style={{ backgroundColor: colors.bg, borderRadius: 12, paddingHorizontal: 14, height: 48,
+                       fontSize: 16, color: colors.text, marginBottom: 14 }}
+            />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Button title="Отмена" variant="ghost" onPress={() => setBudgetOpen(false)} />
+              </View>
+              <View style={{ flex: 2 }}>
+                <Button title="Сохранить" loading={savingBudget}
+                        onPress={() => {
+                          const v = Number(budgetDraft.replace(",", ".").replace(" ", ""));
+                          if (!Number.isFinite(v) || v <= 0) {
+                            setError("Введите сумму больше нуля");
+                            return;
+                          }
+                          setSavingBudget(true);
+                          patch({ monthly_budget: v }).finally(() => {
+                            setSavingBudget(false);
+                            setBudgetOpen(false);
+                          });
+                        }} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ErrorText error={error} />
       <Button title="Выйти из аккаунта" variant="danger" icon={<Ionicons name="log-out-outline" size={18} color="#fff" />}

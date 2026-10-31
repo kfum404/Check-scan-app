@@ -5,7 +5,7 @@
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView,
-  StyleSheet, Text, TouchableOpacity, View,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -238,7 +238,15 @@ function EditStage(props: { scan: ScanResult | null; photoUri?: string; onDone: 
   const [amount, setAmount] = useState(r ? String(r.total_amount) : "");
   const [shop, setShop] = useState(r?.shop_name === "Не распознан" ? "" : (r?.shop_name ?? ""));
   const [dateStr, setDateStr] = useState(r ? toInputDate(r.date) : toInputDate(new Date().toISOString()));
+  const [items, setItems] = useState<{ name: string; price: string }[]>(
+    () => (r?.items ?? []).map((i) => ({ name: i.item_name, price: String(i.price) })),
+  );
   const [error, setError] = useState<string>();
+
+  const validItems = () =>
+    items
+      .map((i) => ({ item_name: i.name.trim(), price: Number(i.price.replace(",", ".")) }))
+      .filter((i) => i.item_name && Number.isFinite(i.price) && i.price > 0);
 
   const confirm = useMutation({
     mutationFn: async () => {
@@ -249,12 +257,13 @@ function EditStage(props: { scan: ScanResult | null; photoUri?: string; onDone: 
         // ручной ввод без фото — отдельный эндпоинт
         return receiptsApi.manual({
           shop_name: shop.trim(), date: fromInputDate(dateStr), total_amount: total,
+          items: validItems(),
         });
       }
       return receiptsApi.confirm(r.id, {
         shop_name: shop.trim(), date: fromInputDate(dateStr), total_amount: total,
         category: r.category,
-        items: r.items.map((i) => ({ item_name: i.item_name, price: i.price })),
+        items: validItems(),
       });
     },
     onSuccess: () => {
@@ -268,8 +277,15 @@ function EditStage(props: { scan: ScanResult | null; photoUri?: string; onDone: 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 16,
+                       marginTop: 16, marginBottom: 8, gap: 12 }}>
+          <TouchableOpacity onPress={props.onBack} hitSlop={12} accessibilityLabel="Назад">
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "800", flex: 1 }}>Новый чек</Text>
+        </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-                       marginHorizontal: 16, marginTop: 16, marginBottom: 8 }}>
+                       marginHorizontal: 16, marginBottom: 8 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             <Text style={{ color: colors.success, fontSize: 13, fontWeight: "600" }}>Данные распознаны</Text>
@@ -295,6 +311,43 @@ function EditStage(props: { scan: ScanResult | null; photoUri?: string; onDone: 
                  error={low.has("shop_name")} placeholder="Евроопт" autoCapitalize="sentences" />
           <Field label="Дата и время" value={dateStr} onChangeText={setDateStr}
                  error={low.has("date")} placeholder="14.05.2026, 12:40" />
+        </View>
+
+        <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                         marginBottom: 6 }}>
+            <Text style={{ color: colors.subtext, fontSize: 12, fontWeight: "600" }}>ПОЗИЦИИ</Text>
+            <TouchableOpacity onPress={() => setItems((v) => [...v, { name: "", price: "" }])}
+                              hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Добавить</Text>
+            </TouchableOpacity>
+          </View>
+          {items.length === 0 && (
+            <Text style={{ color: colors.subtext, fontSize: 13, marginBottom: 8 }}>Позиций нет — добавьте вручную</Text>
+          )}
+          {items.map((item, idx) => (
+            <View key={idx} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <TextInput
+                value={item.name}
+                onChangeText={(v) => setItems((arr) => arr.map((a, i) => (i === idx ? { ...a, name: v } : a)))}
+                placeholder="Название товара" placeholderTextColor={colors.subtext}
+                style={{ flex: 1, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12,
+                         height: 44, fontSize: 14, color: colors.text }}
+              />
+              <TextInput
+                value={item.price}
+                onChangeText={(v) => setItems((arr) => arr.map((a, i) => (i === idx ? { ...a, price: v } : a)))}
+                placeholder="0.00" placeholderTextColor={colors.subtext}
+                keyboardType="decimal-pad"
+                style={{ width: 84, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 10,
+                         height: 44, fontSize: 14, color: colors.text }}
+              />
+              <TouchableOpacity onPress={() => setItems((arr) => arr.filter((_, i) => i !== idx))} hitSlop={8}>
+                <Ionicons name="close-circle-outline" size={22} color={colors.subtext} />
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
 
         <ErrorText error={error} />
