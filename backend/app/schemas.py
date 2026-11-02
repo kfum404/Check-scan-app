@@ -29,6 +29,12 @@ class ReceiptItemOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ReceiptItemIn(BaseModel):
+    """Позиция из запроса (у новых позиций id ещё нет)."""
+    item_name: str = Field(min_length=1, max_length=200)
+    price: float = Field(gt=0, le=100_000)
+
+
 class ReceiptOut(BaseModel):
     id: int
     shop_name: str
@@ -61,7 +67,7 @@ class ReceiptConfirmRequest(BaseModel):
     date: datetime
     total_amount: float = Field(gt=0, le=10_000)
     category: str | None = None
-    items: list[ReceiptItemOut] = []
+    items: list[ReceiptItemIn] = []
 
 
 class ReceiptListResponse(BaseModel):

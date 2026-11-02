@@ -22,8 +22,13 @@ async function parseError(res: Response): Promise<ApiError> {
   try {
     const body = await res.json();
     const d = body?.detail;
-    if (d && typeof d === "object") {
+    if (d && typeof d === "object" && !Array.isArray(d)) {
       return new ApiError({ code: d.code ?? "ERROR", message: d.message ?? "Ошибка", fields: d.fields });
+    }
+    // FastAPI 422: detail — список {loc, msg, type}
+    if (Array.isArray(d) && d.length) {
+      const msgs = d.map((e: any) => e?.msg).filter(Boolean).join("; ");
+      return new ApiError({ code: "VALIDATION", message: msgs || `Ошибка валидации (${res.status})` });
     }
     return new ApiError({ code: "HTTP_" + res.status, message: `Ошибка сервера (${res.status})` });
   } catch {
