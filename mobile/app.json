@@ -9,6 +9,7 @@
     "backgroundColor": "#F6F7FB",
     "android": {
       "package": "com.checkscan.app",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "POST_NOTIFICATIONS"
       ]

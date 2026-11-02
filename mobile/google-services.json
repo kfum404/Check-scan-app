@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "804963259419",
+    "project_id": "project-8372011007856942639",
+    "storage_bucket": "project-8372011007856942639.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:804963259419:android:e925f38263eb3f9d4894be",
+        "android_client_info": {
+          "package_name": "com.checkscan.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwIlI6YRgsRSGDPsJCeCP2jk1q2XCGVOI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
