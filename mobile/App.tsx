@@ -7,6 +7,7 @@ import { StatusBar } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import RootTabs from "./src/navigation/RootTabs";
 import LoginScreen from "./src/screens/LoginScreen";
 import { useTheme } from "./src/theme";
@@ -43,11 +44,13 @@ function Root() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Root />
-        </AuthProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <Root />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
