@@ -15,6 +15,8 @@ export const authApi = {
     api<TokenResponse>("/auth/register", { method: "POST", body: { email, password, name } }),
   login: (email: string, password: string) =>
     api<TokenResponse>("/auth/login", { method: "POST", body: { email, password } }),
+  google: (idToken: string) =>
+    api<TokenResponse>("/auth/google", { method: "POST", body: { id_token: idToken } }),
   me: () => api<User>("/auth/me"),
 };
 

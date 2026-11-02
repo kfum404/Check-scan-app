@@ -15,6 +15,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str = Field(min_length=20)
+
+
 class TokenResponse(BaseModel):
     token: str
     user: "UserResponse"

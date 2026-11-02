@@ -4,15 +4,25 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri, useAuthRequest, useAutoDiscovery, ResponseType } from "expo-auth-session";
+import Constants from "expo-constants";
 
-import { ApiError, API_URL } from "../api/client";
+import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Button, ErrorText, Field } from "../components/ui";
 import { useTheme } from "../theme";
 
+WebBrowser.maybeCompleteAuthSession();
+
+// Android OAuth client ID (тип «Android» в Google Cloud, пакет com.checkscan.app
+// + SHA-1 подписи). Для Android-клиентов Google не требует регистрации redirect
+// URI — личность приложения проверяется по подписи.
+const GOOGLE_CLIENT_ID: string =
+  (Constants.expoConfig?.extra as any)?.googleClientId ?? "";
+
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { login, register, loginWithToken } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +30,36 @@ export default function LoginScreen() {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Google OAuth через системное окно браузера (Android client ID)
+  const discovery = useAutoDiscovery("https://accounts.google.com");
+  const redirectUri = makeRedirectUri({ scheme: "checkscan", path: "auth" });
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: GOOGLE_CLIENT_ID,
+      redirectUri,
+      responseType: ResponseType.IdToken,
+      scopes: ["openid", "email", "profile"],
+      extraParams: { nonce: "checkscan" },
+    },
+    discovery,
+  );
+
+  React.useEffect(() => {
+    if (response?.type === "success") {
+      const idToken = response.params.id_token;
+      if (!idToken) {
+        setError("Google не вернул id_token");
+        return;
+      }
+      setGoogleLoading(true);
+      loginWithGoogle(idToken)
+        .catch((e) => setError(e instanceof ApiError ? e.message : "Не удалось войти через Google"))
+        .finally(() => setGoogleLoading(false));
+    } else if (response?.type === "error") {
+      setError("Вход через Google не удался: " + (response.error?.message ?? "ошибка"));
+    }
+  }, [response, loginWithGoogle]);
 
   const submit = async () => {
     setError(undefined);
@@ -36,31 +76,16 @@ export default function LoginScreen() {
     }
   };
 
-  // OAuth: открываем согласие Google в системном окне, сервер вернёт
-  // редирект на checkscan://auth?token=<JWT>
-  const loginWithGoogle = async () => {
+  const startGoogle = async () => {
     setError(undefined);
-    setGoogleLoading(true);
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google OAuth не настроен в приложении");
+      return;
+    }
     try {
-      const res = await WebBrowser.openAuthSessionAsync(
-        `${API_URL}/auth/google/start`,
-        "checkscan://auth",
-      );
-      if (res.type === "success" && res.url.startsWith("checkscan://auth")) {
-        const params = new URLSearchParams(res.url.split("?")[1] ?? "");
-        const token = params.get("token");
-        const oauthError = params.get("error");
-        if (token) await loginWithToken(token);
-        else if (oauthError === "oauth_not_configured")
-          setError("Google OAuth пока не настроен на сервере");
-        else setError("Вход через Google отменён или не удался");
-      } else if (res.type !== "cancel") {
-        setError("Вход через Google отменён или не удался");
-      }
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Не удалось войти через Google");
-    } finally {
-      setGoogleLoading(false);
+      await promptAsync();
+    } catch {
+      setError("Не удалось открыть окно входа Google");
     }
   };
 
@@ -99,7 +124,7 @@ export default function LoginScreen() {
           title="Войти через Google"
           variant="ghost"
           icon={<Text style={{ fontSize: 16, fontWeight: "800", color: colors.primary }}>G</Text>}
-          onPress={() => void loginWithGoogle()}
+          onPress={() => void startGoogle()}
           loading={googleLoading}
         />
 

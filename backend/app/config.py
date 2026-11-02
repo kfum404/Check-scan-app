@@ -18,10 +18,9 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "*"              # на проде: "https://...,exp://..."
 
-    # Google OAuth (Web application client); без них /auth/google/* вернёт 503
+    # Google OAuth: Web client ID из Google Cloud Console (без secret — Implicit flow,
+    # приложение получает id_token через expo-auth-session и шлёт его на /auth/google)
     GOOGLE_CLIENT_ID: str | None = None
-    GOOGLE_CLIENT_SECRET: str | None = None
-    GOOGLE_REDIRECT_URI: str = "http://193.233.82.97:8000/auth/google/callback"
 
 
 settings = Settings()

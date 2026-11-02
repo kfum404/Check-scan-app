@@ -17,7 +17,7 @@ interface AuthCtx {
   bootstrapping: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
-  loginWithToken: (token: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => Promise<void>;
 }
@@ -27,7 +27,7 @@ const Ctx = createContext<AuthCtx>({
   bootstrapping: true,
   login: async () => {},
   register: async () => {},
-  loginWithToken: async () => {},
+  loginWithGoogle: async () => {},
   logout: async () => {},
   updateUser: async () => {},
 });
@@ -79,11 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applySession]
   );
 
-  const loginWithToken = useCallback(
-    async (token: string) => {
-      setAuthToken(token);
-      const u = await authApi.me();
-      await applySession(token, u);
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      const r = await authApi.google(idToken);
+      await applySession(r.token, r.user);
     },
     [applySession]
   );
@@ -100,8 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, bootstrapping, login, register, loginWithToken, logout, updateUser }),
-    [user, bootstrapping, login, register, loginWithToken, logout, updateUser]
+    () => ({ user, bootstrapping, login, register, loginWithGoogle, logout, updateUser }),
+    [user, bootstrapping, login, register, loginWithGoogle, logout, updateUser]
   );
 
   return (

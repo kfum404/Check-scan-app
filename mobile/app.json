@@ -47,7 +47,8 @@
     "extra": {
       "eas": {
         "projectId": "34bdc520-4486-4439-9090-8f74f6e0f5fd"
-      }
+      },
+      "googleClientId": ""
     },
     "owner": "spermirkss-team"
   }
