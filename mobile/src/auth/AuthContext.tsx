@@ -17,6 +17,7 @@ interface AuthCtx {
   bootstrapping: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => Promise<void>;
 }
@@ -26,6 +27,7 @@ const Ctx = createContext<AuthCtx>({
   bootstrapping: true,
   login: async () => {},
   register: async () => {},
+  loginWithToken: async () => {},
   logout: async () => {},
   updateUser: async () => {},
 });
@@ -77,6 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applySession]
   );
 
+  const loginWithToken = useCallback(
+    async (token: string) => {
+      setAuthToken(token);
+      const u = await authApi.me();
+      await applySession(token, u);
+    },
+    [applySession]
+  );
+
   const logout = useCallback(async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     setAuthToken(null);
@@ -89,8 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, bootstrapping, login, register, logout, updateUser }),
-    [user, bootstrapping, login, register, logout, updateUser]
+    () => ({ user, bootstrapping, login, register, loginWithToken, logout, updateUser }),
+    [user, bootstrapping, login, register, loginWithToken, logout, updateUser]
   );
 
   return (

@@ -1,8 +1,11 @@
+import csv
+import io
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -121,6 +124,25 @@ def confirm_receipt(
     return db.scalar(
         select(Receipt).options(selectinload(Receipt.items)).where(Receipt.id == receipt_id)
     )
+
+
+@router.get("/export.csv", response_class=PlainTextResponse)
+def export_csv(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Экспорт подтверждённых чеков в CSV (разделитель «;», UTF-8 с BOM — открывается в Excel)."""
+    rows = db.scalars(
+        select(Receipt)
+        .where(Receipt.user_id == user.id, Receipt.status == "confirmed")
+        .order_by(Receipt.date.desc())
+    ).all()
+    buf = io.StringIO()
+    buf.write("\ufeff")  # BOM, чтобы Excel понял UTF-8
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Дата", "Магазин", "Категория", "Сумма", "Валюта", "Позиции"])
+    for r in rows:
+        items = "; ".join(f"{i.item_name} — {i.price}" for i in r.items)
+        w.writerow([r.date.strftime("%d.%m.%Y %H:%M"), r.shop_name, r.category,
+                    f"{r.total_amount:.2f}", r.currency, items])
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv; charset=utf-8")
 
 
 @router.get("", response_model=ReceiptListResponse)

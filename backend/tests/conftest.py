@@ -7,7 +7,7 @@ os.environ["JWT_SECRET"] = "test-secret"
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db import Base, engine
+from app.db import Base, SessionLocal, engine
 from app.main import app
 
 
@@ -16,6 +16,15 @@ def _fresh_db():
     """Чистая схема перед каждым тестом (in-memory SQLite общий на все сессии)."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+
+
+@pytest.fixture()
+def db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @pytest.fixture()

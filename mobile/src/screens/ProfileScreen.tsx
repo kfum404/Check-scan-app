@@ -1,9 +1,10 @@
-// Профиль: карточка пользователя, привязки (заглушки), тема, тумблеры, выход.
+// Профиль: карточка пользователя, привязки (заглушки), тема, тумблеры, экспорт CSV, выход.
 import React, { useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 
-import { ApiError } from "../api/client";
+import { ApiError, apiText } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Button, Card, ErrorText, Segmented, Toggle } from "../components/ui";
 import { getPushStatus, registerPushToken } from "../notifications/register";
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const [budgetDraft, setBudgetDraft] = useState("");
   const [savingBudget, setSavingBudget] = useState(false);
   const [pushStatus, setPushStatus] = useState(getPushStatus());
+  const [exporting, setExporting] = useState(false);
 
   // при открытии профиля пробуем зарегистрировать push заново и показываем статус
   useFocusEffect(React.useCallback(() => {
@@ -46,6 +48,30 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // Экспорт CSV: качаем с сервера → сохраняем в Downloads через SAF (внешняя FS)
+  const exportCsv = async () => {
+    setError(undefined);
+    setExporting(true);
+    try {
+      const csv = await apiText("/receipts/export.csv");
+      const perms = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (!perms.granted) {
+        setError("Не выбрана папка для сохранения");
+        return;
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+        perms.directoryUri, `checkscan-${stamp}.csv`, "text/csv",
+      );
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      Alert.alert("Экспорт завершён", "Файл checkscan-" + stamp + ".csv сохранён в выбранную папку");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Не удалось экспортировать CSV");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -70,7 +96,7 @@ export default function ProfileScreen() {
 
       <Text style={s.section}>Вход через сервисы</Text>
       <Card style={{ paddingVertical: 6 }}>
-        <ServiceRow icon="logo-google" name="Google" note="в разработке" action="Скоро" onPress={() => {}} />
+        <ServiceRow icon="logo-google" name="Google" note="OAuth 2.0 — на экране входа" action="Доступен" done onPress={() => {}} />
         <ServiceRow icon="mail" name="Email" note={user.email} action="Подключен" done onPress={() => {}} />
       </Card>
 
@@ -117,6 +143,22 @@ export default function ProfileScreen() {
           title="Автосохранение чеков" note="после успешного распознавания"
           value={user.autosave_enabled} onChange={(v) => void patch({ autosave_enabled: v })}
         />
+      </Card>
+
+      <Text style={s.section}>Данные</Text>
+      <Card style={{ paddingVertical: 6 }}>
+        <TouchableOpacity style={s.kvRow} onPress={() => void exportCsv()} disabled={exporting}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Ionicons name="download-outline" size={20} color={colors.text} />
+            <View>
+              <Text style={{ color: colors.text, fontSize: 15 }}>Экспорт чеков в CSV</Text>
+              <Text style={{ color: colors.subtext, fontSize: 11 }}>сохранение в Downloads</Text>
+            </View>
+          </View>
+          {exporting
+            ? <Text style={{ color: colors.subtext, fontSize: 13 }}>Сохранение…</Text>
+            : <Ionicons name="chevron-forward" size={18} color={colors.subtext} />}
+        </TouchableOpacity>
       </Card>
       <Text style={{ color: colors.subtext, fontSize: 11, marginHorizontal: 20, marginBottom: 12 }}>
         Push: {pushStatus}
@@ -168,7 +210,7 @@ export default function ProfileScreen() {
               onPress={confirmLogout} />
 
       <Text style={{ color: colors.subtext, fontSize: 11, textAlign: "center", marginBottom: 32 }}>
-        ЧекСкан · версия 1.4.0
+        ЧекСкан · версия 1.5.0
       </Text>
     </ScrollView>
   );

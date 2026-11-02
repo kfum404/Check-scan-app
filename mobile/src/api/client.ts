@@ -8,6 +8,9 @@ let authToken: string | null = null;
 export function setAuthToken(token: string | null) {
   authToken = token;
 }
+export function getAuthToken() {
+  return authToken;
+}
 
 export class ApiError extends Error {
   constructor(public detail: ApiErrorDetail) {
@@ -61,4 +64,13 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   if (!res.ok) throw await parseError(res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** GET с ответом как текст (CSV и подобное). */
+export async function apiText(path: string): Promise<string> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+  });
+  if (!res.ok) throw await parseError(res);
+  return res.text();
 }
