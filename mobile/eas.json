@@ -3,6 +3,7 @@
   "build": {
     "apk": {
       "android": { "buildType": "apk" },
+      "credentialsSource": "local",
       "env": { "EXPO_PUBLIC_API_URL": "http://193.233.82.97:8000" }
     },
     "preview": {
