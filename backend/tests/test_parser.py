@@ -38,9 +38,24 @@ def test_extract_shop_skips_service_lines():
 
 
 def test_extract_shop_skips_address_lines():
-    """Город/улица в шапке — не магазин (билет Электротранспорта)."""
+    """Город/улица в шапке — не магазин; юрформу отрезаем (ООО «…» → «…»)."""
     text = "г. Набережные Челны\nООО Электротранспорт\n29.10.2019"
-    assert extract_shop(text) == "ООО Электротранспорт"
+    assert extract_shop(text) == "Электротранспорт"
+
+
+def test_extract_shop_quoted_name():
+    """Название в кавычках вытаскиваем из строки магазина."""
+    text = ('Республиканское торговое унитарное предприятие\n'
+            'Магазин "Оптика" г.Кобрин\nКасса №1')
+    assert extract_shop(text) == "Оптика"
+
+
+def test_extract_shop_skips_caps_garbage():
+    """Мусор OCR из заглавных блоков (ITT EE OOOO EE) не считаем магазином."""
+    text = "ITT EE OOOO EE\nМагазин косметики\n24.10.2026"
+    shop = extract_shop(text)
+    assert shop is not None
+    assert "OOOO" not in shop
 
 
 def test_parse_receipt_confidence():

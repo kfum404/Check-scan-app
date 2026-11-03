@@ -33,6 +33,19 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_column("users", "push_token", "VARCHAR(255)")
+    _migrate_add_column("receipts", "created_at", "TIMESTAMP")
+    _backfill_receipt_created_at()
+
+
+def _backfill_receipt_created_at() -> None:
+    """Старым чекам ставим created_at = date (даты на чеке), чтобы месячные
+    итоги для них считались как раньше, пока они заново не отсканируются."""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        conn.execute(text("UPDATE receipts SET created_at = date "
+                          "WHERE created_at IS NULL"))
+        conn.commit()
 
 
 def _migrate_add_column(table: str, column: str, ddl: str) -> None:

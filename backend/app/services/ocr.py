@@ -202,6 +202,13 @@ def extract_items(text: str) -> list[tuple[str, float]]:
         r"|\bкарт[аеу]\b|\bндс\b|\bhac\b|mwst|vat|\bстоим\w*|в\s*т\.?\s*ч"
         r"|в том числе|\bединиц\w*)"
     )
+    # скидки/купоны/бонусы — не позиции: их не показываем в чеке
+    discount = re.compile(
+        r"(?i)(\bскидк\w*|\bкупон\w*|\bдисконт\w*|\bбонус\w*|\bваучер\w*"
+        r"|\bcoupon\b|\bdiscount\b|\bsale\b)"
+    )
+    # «Скидка -3.00»: минус перед суммой в конце строки — это уценка, не цена
+    negative_amount = re.compile(r"-\s*(\d{1,6}[.,]\d{2})\s*$")
     has_letters = re.compile(r"[A-Za-zА-Яа-яЁё]{3}")
 
     def clean(body: str) -> str:
@@ -220,13 +227,23 @@ def extract_items(text: str) -> list[tuple[str, float]]:
         if not raw:
             pending_name = None
             continue
+        # скидки/купоны и отрицательные суммы — не позиции; сбрасываем
+        # накопленное имя, чтобы скидка не приклеилась к следующему товару
+        if discount.search(raw) or negative_amount.search(raw):
+            pending_name = None
+            continue
         m = re.search(r"(\d{1,6}[.,]\d{2})\s*$", raw)
         if not m:
             cand = clean(raw)
-            # строка-кандидат в названия: осмысленный текст без цены
+            # строка-кандидат в названия: осмысленный текст без цены.
+            # OCR рвёт длинное имя на 2–3 строки — склеиваем подряд идущие
+            # «именные» строки, а не перезаписываем последней
             if (4 <= len(cand) <= 60 and has_letters.search(cand)
                     and not blacklist.search(cand)):
-                pending_name = cand
+                if pending_name and len(pending_name) + len(cand) + 1 <= 80:
+                    pending_name = f"{pending_name} {cand}"
+                elif not pending_name:
+                    pending_name = cand
             continue
 
         price = float(m.group(1).replace(",", "."))

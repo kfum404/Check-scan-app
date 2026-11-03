@@ -27,11 +27,15 @@ def _month_total_confirmed(db, user_id: int) -> float:
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0,
                               tzinfo=None)  # наивное, как в stats.py
+    # Важно: месяц считаем по created_at (когда чек сохранили), а не по дате
+    # на чеке — иначе скан старого чека не попадает в текущий месяц и лимит
+    # «молча» не срабатывает. Для старых строк created_at = date (backfill).
+    month_field = func.coalesce(Receipt.created_at, Receipt.date)
     total = db.scalar(
         select(func.coalesce(func.sum(Receipt.total_amount), 0)).where(
             Receipt.user_id == user_id,
             Receipt.status == "confirmed",
-            Receipt.date >= month_start,
+            month_field >= month_start,
         )
     )
     return float(total or 0)

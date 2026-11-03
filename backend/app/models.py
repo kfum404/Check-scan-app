@@ -41,6 +41,10 @@ class Receipt(Base):
     # draft — распознан, ждёт подтверждения на экране «Карандаш»;
     # confirmed — попал в историю/аналитику.
     status: Mapped[str] = mapped_column(String(20), default="draft", index=True)
+    # момент сохранения чека (не путать с date — датой, напечатанной на чеке):
+    # уведомления и «потрачено за месяц» считаем по created_at, чтобы старые
+    # чеки, отсканированные сейчас, попадали в текущий месяц.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ocr_confidence: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
 

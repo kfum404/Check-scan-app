@@ -42,3 +42,37 @@ def test_total_like_lines_are_not_items():
 def test_potato_is_not_blacklisted_by_karta():
     """«КАРТОФЕЛЬ» не должен отсекаться правилом про банковскую карту."""
     assert extract_items("КАРТОФЕЛЬ СВЕЖИЙ             2.00") == [("КАРТОФЕЛЬ СВЕЖИЙ", 2.00)]
+
+
+def test_discount_lines_are_not_items():
+    """Скидки/купоны и отрицательные суммы — не позиции чека."""
+    text = (
+        "Шампунь баланс укрепляющий для волос, 500мл\n"
+        "4607034474105\n"
+        "8.19 x1.000 8.19\n"
+        "Скидка -2.00\n"
+        "Маска GLAMMY восстановление с\n"
+        "кератином, 500 мл\n"
+        "4811248013457\n"
+        "16.99 x1.000 16.99\n"
+        "Скидка -3.00\n"
+        "ИТОГО 30.56"
+    )
+    items = extract_items(text)
+    assert ("Скидка", 2.00) not in items
+    assert ("Скидка -", 2.00) not in items
+    assert all("скидк" not in name.lower() for name, _ in items)
+    # позиции присутствуют, скидки не портят ни цены, ни имена
+    assert len(items) == 2
+
+
+def test_multiline_item_name_is_joined():
+    """Название, разорванное OCR на две строки, склеивается."""
+    text = (
+        "Маска GLAMMY восстановление и укрепление с\n"
+        "кератином, 500 мл\n"
+        "4811248013457\n"
+        "16.99 x1.000 16.99"
+    )
+    items = extract_items(text)
+    assert items == [("Маска GLAMMY восстановление и укрепление с кератином, 500 мл", 16.99)]

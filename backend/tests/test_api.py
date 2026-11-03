@@ -69,7 +69,7 @@ def test_scan_flow(client, auth_headers, monkeypatch):
     assert r.status_code == 201, r.text
     receipt = r.json()["receipt"]
     assert receipt["status"] == "draft"
-    assert receipt["shop_name"] == 'ООО "Евроопт"'
+    assert receipt["shop_name"] == 'Евроопт'
     assert float(receipt["total_amount"]) == 5.55
     assert len(receipt["items"]) == 2
 

@@ -31,10 +31,27 @@ DATE_PATTERNS = [
 # строки-выбросы, которые не бывают названием магазина
 SHOP_BLACKLIST = re.compile(
     r"(?i)(чек|касс|смена|приход|покупка|итог|сумма|наличные|карта|сдача|сайт|www|"
-    r"область|обл\.|район|адрес|тел|факс|e-?mail)"
+    r"область|обл\.|район|адрес|тел|факс|e-?mail|унп|окпо|кассир|касса|"
+    r"платежный документ|будьте здоровы)"
 )
 # адресные строки в шапке (город, улица) — пропускаем, магазин обычно ООО «…»
 ADDRESS_LINE = re.compile(r"(?i)^\s*(г\.?|город|ул\.?|пр-кт|пр\.?|дом|кв\.?)\s")
+# название в кавычках — самый надёжный признак: ООО «Евроопт», магазин "Оптика"
+QUOTED_NAME = re.compile(r"[«\"']([А-Яа-яЁёA-Za-z0-9 .,&-]{2,40})[»\"']")
+# юрлицо с названием: РУП «…», ООО «…», ИП …
+LEGAL_FORM = re.compile(
+    r"(?i)\b(руп|ооо|оао|зао|чтпуп|уп|ип|тд|тсц)\b[ «\"']*([А-Яа-яЁёA-Za-z0-9 .,&-]{2,40})"
+)
+# известные сети — распознаём даже без кавычек
+CHAIN = re.compile(
+    r"(?i)(евроопт|дикси|виталюр|гиппо|доброном|март|веста|корона|простор|"
+    r"гастроном|универсам|цум|медтехника|оптика|косметик|миля|зелёный|"
+    r"наёмник|монетка|пятёрочка|магнит|лента|ашан|кофе|бургер|kfc|mcdonald|"
+    r"белмаркет|грин|санта|пеликан)"
+)
+# мусор OCR: короткие «клоки» заглавных без строчных и без цифр-кода —
+# «ITT EE OOOO EE» — такое названием магазина не бывает
+GARBAGE_CAPS = re.compile(r"^[A-ZА-ЯЁ]{1,3}(\s+[A-ZА-ЯЁ0-9]{1,5}){1,5}$")
 
 DATE_FORMATS = (
     "%d.%m.%Y %H:%M", "%d.%m.%Y", "%d.%m.%y %H:%M", "%d.%m.%y",
@@ -123,13 +140,44 @@ def extract_date(text: str) -> datetime | None:
 
 
 def extract_shop(text: str) -> str | None:
-    for line in (l.strip() for l in text.splitlines()):
-        if len(line) < 4 or len(line) > 60:
+    lines = [l.strip() for l in text.splitlines()]
+
+    def suitable(line: str) -> bool:
+        return (4 <= len(line) <= 60
+                and not SHOP_BLACKLIST.search(line)
+                and not ADDRESS_LINE.match(line))
+
+    # 1) название в кавычках — магазин «Оптика», ООО «Евроопт»: самый надёжный признак
+    for line in lines[:8]:
+        if not suitable(line):
             continue
-        if SHOP_BLACKLIST.search(line) or ADDRESS_LINE.match(line):
+        m = QUOTED_NAME.search(line)
+        if m:
+            name = m.group(1).strip(" .,-")
+            if len(name) >= 2 and not GARBAGE_CAPS.match(name):
+                return name
+    # 2) юрлицо с названием: РУП «Медтехника» → «Медтехника»
+    for line in lines[:8]:
+        if not suitable(line):
             continue
-        # магазин обычно в шапке — первая подходящая строка; без .title(),
-        # чтобы «ООО» не превращалось в «Ооо»
+        m = LEGAL_FORM.search(line)
+        if m:
+            name = m.group(2).strip(" .,-«»\"'")
+            if len(name) >= 2 and not GARBAGE_CAPS.match(name):
+                return name
+    # 3) известная сеть прямым вхождением
+    for line in lines[:8]:
+        if not suitable(line):
+            continue
+        m = CHAIN.search(line)
+        if m:
+            return line
+    # 4) запасной вариант — первая осмысленная строка шапки, но не мусор CAPS
+    for line in lines:
+        if not suitable(line):
+            continue
+        if GARBAGE_CAPS.match(line) and not CHAIN.search(line):
+            continue
         return line
     return None
 

@@ -72,6 +72,7 @@ async def scan_receipt(
         currency=parsed.currency,
         category=categorize.categorize(text, parsed.shop_name),
         status="draft",
+        created_at=now,
         image_path=_save_upload(content),
         ocr_confidence=ocr_conf,
     )
@@ -191,6 +192,7 @@ def create_manual(
         total_amount=body.total_amount,
         category=body.category or "Прочее",
         status="confirmed",
+        created_at=datetime.now(timezone.utc),
     )
     db.add(receipt)
     db.flush()
