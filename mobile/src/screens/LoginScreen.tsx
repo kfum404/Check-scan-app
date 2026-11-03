@@ -57,9 +57,21 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const res: any = await GoogleSignin.signIn();
-      const idToken: string | undefined =
-        res?.idToken ?? res?.data?.idToken ?? (await GoogleSignin.getTokens()).idToken;
+      let res: any;
+      try {
+        res = await GoogleSignin.signIn();
+      } catch (se: any) {
+        throw new Error("signIn: " + (se?.message ?? String(se)) + (se?.code ? ` (код ${se.code})` : ""));
+      }
+      const direct: string | undefined = res?.idToken ?? res?.data?.idToken;
+      let idToken: string | undefined = direct;
+      if (!idToken) {
+        try {
+          idToken = (await GoogleSignin.getTokens()).idToken;
+        } catch (te: any) {
+          throw new Error("getTokens: " + (te?.message ?? String(te)) + (te?.code ? ` (код ${te.code})` : ""));
+        }
+      }
       if (!idToken) {
         setError("Google не вернул id_token");
         return;
@@ -72,8 +84,10 @@ export default function LoginScreen() {
         // вход уже выполняется
       } else if (e?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setError("Google Play Services недоступны на устройстве");
+      } else if (e instanceof ApiError) {
+        setError("Сервер: " + e.message);
       } else {
-        setError(e instanceof ApiError ? e.message : "Не удалось войти через Google");
+        setError("Google-вход: " + (e?.message ? String(e.message) : String(e)));
       }
     } finally {
       setGoogleLoading(false);
