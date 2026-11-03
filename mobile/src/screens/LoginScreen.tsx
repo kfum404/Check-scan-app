@@ -1,10 +1,9 @@
-// Экран входа / регистрации — email + пароль и вход через Google (OAuth 2.0).
+// Экран входа / регистрации — email + пароль и вход через Google (Google Sign-In SDK).
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import { makeRedirectUri, useAuthRequest, useAutoDiscovery, ResponseType } from "expo-auth-session";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import Constants from "expo-constants";
 
 import { ApiError } from "../api/client";
@@ -12,13 +11,16 @@ import { useAuth } from "../auth/AuthContext";
 import { Button, ErrorText, Field } from "../components/ui";
 import { useTheme } from "../theme";
 
-WebBrowser.maybeCompleteAuthSession();
-
-// Android OAuth client ID (тип «Android» в Google Cloud, пакет com.checkscan.app
-// + SHA-1 подписи). Для Android-клиентов Google не требует регистрации redirect
-// URI — личность приложения проверяется по подписи.
-const GOOGLE_CLIENT_ID: string =
+// Web client ID (тип «Веб-приложение») — выступает аудиторией id_token.
+// Личность приложения подтверждается Android-клиентом (пакет + SHA-1 подписи),
+// личность пользователя — через нативный Google Sign-In SDK (без браузера).
+const GOOGLE_WEB_CLIENT_ID: string =
   (Constants.expoConfig?.extra as any)?.googleClientId ?? "";
+
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+  offlineAccess: false,
+});
 
 export default function LoginScreen() {
   const { colors } = useTheme();
@@ -30,37 +32,6 @@ export default function LoginScreen() {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  // Google OAuth через системное окно браузера (Android client ID)
-  const discovery = useAutoDiscovery("https://accounts.google.com");
-  const redirectUri = makeRedirectUri({ scheme: "checkscan", path: "auth" });
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      redirectUri,
-      responseType: ResponseType.IdToken,
-      scopes: ["openid", "email", "profile"],
-      extraParams: { nonce: "checkscan" },
-      usePKCE: false,
-    },
-    discovery,
-  );
-
-  React.useEffect(() => {
-    if (response?.type === "success") {
-      const idToken = response.params.id_token;
-      if (!idToken) {
-        setError("Google не вернул id_token");
-        return;
-      }
-      setGoogleLoading(true);
-      loginWithGoogle(idToken)
-        .catch((e) => setError(e instanceof ApiError ? e.message : "Не удалось войти через Google"))
-        .finally(() => setGoogleLoading(false));
-    } else if (response?.type === "error") {
-      setError("Вход через Google не удался: " + (response.error?.message ?? "ошибка"));
-    }
-  }, [response, loginWithGoogle]);
 
   const submit = async () => {
     setError(undefined);
@@ -79,14 +50,33 @@ export default function LoginScreen() {
 
   const startGoogle = async () => {
     setError(undefined);
-    if (!GOOGLE_CLIENT_ID) {
+    if (!GOOGLE_WEB_CLIENT_ID) {
       setError("Google OAuth не настроен в приложении");
       return;
     }
+    setGoogleLoading(true);
     try {
-      await promptAsync();
-    } catch {
-      setError("Не удалось открыть окно входа Google");
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const res: any = await GoogleSignin.signIn();
+      const idToken: string | undefined =
+        res?.idToken ?? res?.data?.idToken ?? (await GoogleSignin.getTokens()).idToken;
+      if (!idToken) {
+        setError("Google не вернул id_token");
+        return;
+      }
+      await loginWithGoogle(idToken);
+    } catch (e: any) {
+      if (e?.code === statusCodes.SIGN_IN_CANCELLED) {
+        // пользователь закрыл окно — не ошибка
+      } else if (e?.code === statusCodes.IN_PROGRESS) {
+        // вход уже выполняется
+      } else if (e?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("Google Play Services недоступны на устройстве");
+      } else {
+        setError(e instanceof ApiError ? e.message : "Не удалось войти через Google");
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 

@@ -42,13 +42,14 @@
         {
           "sounds": []
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {
         "projectId": "34bdc520-4486-4439-9090-8f74f6e0f5fd"
       },
-      "googleClientId": "804963259419-1kp4u3i9d002r4tr7pogu7imq6cb1sus.apps.googleusercontent.com"
+      "googleClientId": "804963259419-omvo81o4d2ejjiuplq8hu97hlee4577g.apps.googleusercontent.com"
     },
     "owner": "spermirkss-team"
   }
