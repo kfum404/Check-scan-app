@@ -41,6 +41,7 @@ export default function LoginScreen() {
       responseType: ResponseType.IdToken,
       scopes: ["openid", "email", "profile"],
       extraParams: { nonce: "checkscan" },
+      usePKCE: false,
     },
     discovery,
   );
