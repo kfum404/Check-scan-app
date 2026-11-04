@@ -11,6 +11,18 @@ export function getPushStatus(): string {
   return lastStatus;
 }
 
+// Показывать push даже когда приложение открыто: без обработчика Expo
+// доставляет уведомление только слушателям, и оно «молча» не появляется
+// в шторке (пользователь думает, что push не пришёл).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 export async function registerPushToken(): Promise<void> {
   try {
     if (Platform.OS === "android") {
