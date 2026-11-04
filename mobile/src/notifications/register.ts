@@ -16,8 +16,7 @@ export function getPushStatus(): string {
 // в шторке (пользователь думает, что push не пришёл).
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
