@@ -33,6 +33,8 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _migrate_add_column("users", "push_token", "VARCHAR(255)")
+    _migrate_add_column("users", "push_level", "INTEGER DEFAULT 0")
+    _migrate_add_column("users", "push_month", "VARCHAR(7)")
     _migrate_add_column("receipts", "created_at", "TIMESTAMP")
     _backfill_receipt_created_at()
 

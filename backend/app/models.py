@@ -20,6 +20,10 @@ class User(Base):
     theme_preference: Mapped[str] = mapped_column(String(10), default="light")
     monthly_budget: Mapped[float] = mapped_column(Numeric(10, 2), default=5000)
     push_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # состояние уведомлений о лимите: уровень (0 — нет, 1 — 80%, 2 — лимит)
+    # и месяц, за который этот уровень актуален — в новом месяце сбрасываем
+    push_level: Mapped[int] = mapped_column(Integer, default=0)
+    push_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
 
     receipts: Mapped[list["Receipt"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

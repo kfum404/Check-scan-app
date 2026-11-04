@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import init_db
 from .routers import auth, receipts, stats, users
+
+# INFO-логи приложения (в т.ч. доставка push) попадают в server.log рядом
+# с uvicorn-логами; без этого logging молчит на уровне WARNING
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager

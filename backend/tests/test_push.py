@@ -31,3 +31,50 @@ def test_patch_me_accepts_push_token(client, auth_headers):
     r2 = client.patch("/users/me", json={"notifications_enabled": True},
                       headers=auth_headers)
     assert r2.status_code == 200
+
+
+def _make_user_with_receipts(db_session, total: float):
+    from datetime import datetime, timezone
+
+    from app.models import Receipt, User
+
+    user = User(name="Пуш", email="push@test.by", password_hash="x",
+                monthly_budget=100, notifications_enabled=True,
+                push_token="ExponentPushToken[test]")
+    db_session.add(user)
+    db_session.commit()
+    db_session.add(Receipt(user_id=user.id, shop_name="М", date=datetime.now(timezone.utc),
+                           total_amount=total, category="Прочее", status="confirmed",
+                           created_at=datetime.now(timezone.utc)))
+    db_session.commit()
+    return user.id
+
+
+def test_check_and_notify_sends_once_per_level(db_session, monkeypatch):
+    """Алерт шлётся один раз; повторный чек без нового уровня — молчит."""
+    from app.services import push
+
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(push, "_send_expo_push",
+                        lambda token, title, body: sent.append((title, body)))
+
+    uid = _make_user_with_receipts(db_session, total=150)  # > 100 -> уровень 2
+    push.check_and_notify(uid, added_amount=150)
+    assert len(sent) == 1 and "исчерпан" in sent[0][0].lower()
+
+    # второй вызов в том же месяце — уровень уже озвучен
+    push.check_and_notify(uid, added_amount=10)
+    assert len(sent) == 1
+
+
+def test_check_and_notify_already_over_limit_alerts(db_session, monkeypatch):
+    """Лимит превышен до фикса — следующий чек всё равно шлёт алерт."""
+    from app.services import push
+
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(push, "_send_expo_push",
+                        lambda token, title, body: sent.append((title, body)))
+
+    uid = _make_user_with_receipts(db_session, total=999)
+    push.check_and_notify(uid, added_amount=1)
+    assert len(sent) == 1
